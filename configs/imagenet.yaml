@@ -1,0 +1,17 @@
+# ------ root_path/dataset_name ------
+data_root: '/data0/pgao/coop/'
+dataset: 'imagenet'
+
+# ------ Basic Config ------
+backbone: 'RN101'
+
+# ------ Load Cache and Features ------
+load_cache: False
+# load_cache: True
+
+# ------ Hyperparamters ------
+search: True
+# search: False
+
+beta2: 2.0
+beta3: 0.1

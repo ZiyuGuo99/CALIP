@@ -18,9 +18,9 @@ def get_arguments():
 
 def main(cfg):
     backbone = cfg['backbone']
-    global_feat_path = os.path.join('cache', 'global_features', backbone)
+    total_feat_path = os.path.join('cache', 'total_features', backbone)
     label_path = os.path.join('cache', 'label', backbone)
-    os.makedirs(global_feat_path, exist_ok=True)
+    os.makedirs(total_feat_path, exist_ok=True)
     os.makedirs(label_path, exist_ok=True)
 
     clip.available_models()
@@ -37,11 +37,11 @@ def main(cfg):
 
     if cfg['load_cache']:
         print('Loading cached image features and labels from ./cache/...')
-        global_features = torch.load(global_feat_path + '/' + cfg['dataset'] + '.pt')
+        total_features = torch.load(total_feat_path + '/' + cfg['dataset'] + '.pt')
         labels = torch.load(label_path + '/' + cfg['dataset'] + '.pt')
     else:
         print('No cached features and labels, start encoding image features with clip...')
-        global_features = []
+        total_features = []
         labels = []
         with torch.no_grad():
             for i, (images, label) in enumerate(tqdm(loader)):
@@ -49,20 +49,19 @@ def main(cfg):
                 label = label.cuda()
                 features = model.encode_image(images)
 
-                feat_global, feat_spatial = features[0].permute(1, 0, 2), features[1].permute(1, 0, 2)
-                feat_global /= feat_global.norm(dim=-1, keepdim=True)
-                feat_spatial /= feat_spatial.norm(dim=-1, keepdim=True)
+                features = features.permute(1, 0, 2)
+                features /= features.norm(dim=-1, keepdim=True)
 
-                global_features.append(feat_global)
+                total_features.append(features)
                 labels.append(label)
 
-        global_features = torch.cat(global_features, dim=0)
+        total_features = torch.cat(total_features, dim=0)
         labels = torch.cat(labels, dim=0) 
-        torch.save(global_features, global_feat_path + '/' + cfg['dataset'] + '.pt')
+        torch.save(total_features, total_feat_path + '/' + cfg['dataset'] + '.pt')
         torch.save(labels, label_path + '/' + cfg['dataset'] + '.pt')
 
-    img_global_feat = global_features[:, 0, :]
-    img_spatial_feat = global_features[:, 1: , :]
+    img_global_feat = total_features[:, 0, :]
+    img_spatial_feat = total_features[:, 1: , :]
     img_spatial_feat = img_spatial_feat.permute(0, 2, 1)
    
     # ------------------------------------------ CLIP Zero-shot ------------------------------------------

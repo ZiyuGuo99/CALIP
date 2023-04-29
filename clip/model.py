@@ -64,10 +64,8 @@ class AttentionPool2d(nn.Module):
         self.num_heads = num_heads
 
     def forward(self, x):
-        # x_spa = x.reshape(x.shape[0], 1, x.shape[1])  #for KNN
-        x_spa = x.reshape(x.shape[0], x.shape[1], x.shape[2] * x.shape[3]).permute(2, 0, 1)  # NCHW -> (HW)NC
-        x = torch.cat([x_spa.mean(dim=0, keepdim=True), x_spa], dim=0)  # (HW+1)NC
-        # x = torch.cat([x, x], dim=2)  # (HW+1)NC
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[2] * x.shape[3]).permute(2, 0, 1)  # NCHW -> (HW)NC
+        x = torch.cat([x.mean(dim=0, keepdim=True), x], dim=0)  # (HW+1)NC
         x = x + self.positional_embedding[:, None, :].to(x.dtype)  # (HW+1)NC
         x, _ = F.multi_head_attention_forward(
             query=x, key=x, value=x,
@@ -88,8 +86,7 @@ class AttentionPool2d(nn.Module):
             training=self.training,
             need_weights=False
         )
-        x_spa = self.c_proj(x_spa)
-        return x, x_spa
+        return x
 
 
 class ModifiedResNet(nn.Module):
@@ -147,9 +144,9 @@ class ModifiedResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x, x_spa = self.attnpool(x)
+        x = self.attnpool(x)
 
-        return x, x_spa
+        return x
 
 
 class LayerNorm(nn.LayerNorm):
@@ -229,13 +226,11 @@ class VisionTransformer(nn.Module):
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
-        x_spa = x[:, 1:, :] @ self.proj
-        # x = self.ln_post(x[:, 0, :])  #ori
         x = self.ln_post(x) 
 
         if self.proj is not None:
             x = x @ self.proj
-        return x.permute(1, 0, 2), x_spa.permute(1, 0, 2)
+        return x.permute(1, 0, 2)
 
 
 class CLIP(nn.Module):
